@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import * as Tone from 'tone';
 import './styles.css';
 
+// --- Constants ---
 const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 const SCALE_TYPES = [
@@ -21,41 +22,55 @@ const SYNTH_TYPES = {
   PluckSynth: Tone.PluckSynth,
 };
 
+// --- App Component ---
 export default function App() {
   const [root, setRoot] = useState('C');
   const [scale, setScale] = useState('major');
   const [instrument, setInstrument] = useState('Synth');
   const [playStyle, setPlayStyle] = useState('sustained');
 
+  // --- Compute scale notes ---
   function getScaleNotes(root, intervals) {
     const rootIndex = NOTES.indexOf(root);
     let notes = [root];
     let idx = rootIndex;
-    for (let step of intervals) {
-      idx = (idx + step) % NOTES.length;
+    for (let i = 0; i < intervals.length; i++) {
+      idx = (idx + intervals[i]) % NOTES.length;
       notes.push(NOTES[idx]);
     }
-    return notes;
+    return notes.slice(0, -1); // exclude duplicate octave
   }
 
   const scaleData = SCALE_TYPES.find(s => s.value === scale);
   const scaleNotes = getScaleNotes(root, scaleData.intervals);
 
+  // --- Build correct diatonic triads ---
   function buildChords(scaleNotes) {
-    let chords = [];
-    for (let i = 0; i < scaleNotes.length - 1; i++) {
-      chords.push([
-        scaleNotes[i],
-        scaleNotes[(i + 2) % scaleNotes.length],
-        scaleNotes[(i + 4) % scaleNotes.length],
-      ]);
+    const chords = [];
+    const n = scaleNotes.length; // 7 notes
+    for (let i = 0; i < n; i++) {
+      const rootNote = scaleNotes[i];
+      const thirdNote = scaleNotes[(i + 2) % n];
+      const fifthNote = scaleNotes[(i + 4) % n];
+      chords.push([rootNote, thirdNote, fifthNote]);
     }
     return chords;
   }
 
   const chords = buildChords(scaleNotes);
 
-  async function playChord(notes, opts = { style: 'sustained', instrument: 'Synth' }) {
+  // --- Map chord to playable pitches across octaves ---
+  function getPitchNotes(triad) {
+    // Assign sensible octaves for a stacked chord
+    return [
+      `${triad[0]}3`,
+      `${triad[1]}4`,
+      `${triad[2]}4`,
+    ];
+  }
+
+  // --- Play chord ---
+  async function playChord(triad, opts = { style: 'sustained', instrument: 'Synth' }) {
     await Tone.start();
     const now = Tone.now();
 
@@ -64,8 +79,8 @@ export default function App() {
     const chorus = new Tone.Chorus(4, 2.5, 0.3).start();
     const delay = new Tone.FeedbackDelay('8n', 0.25);
 
+    // Select synth
     const ChosenSynth = SYNTH_TYPES[opts.instrument];
-
     let synth;
     if (opts.instrument === 'DuoSynth') {
       synth = new Tone.DuoSynth().chain(chorus, delay, reverb, Tone.Destination);
@@ -76,7 +91,9 @@ export default function App() {
       }).chain(chorus, delay, reverb, Tone.Destination);
     }
 
-    const pitchNotes = [`${notes[0]}3`, `${notes[1]}4`, `${notes[2]}5`];
+    const pitchNotes = getPitchNotes(triad);
+
+    // Sort ascending for arpeggios
     const orderedNotes = [...pitchNotes].sort(
       (a, b) => Tone.Frequency(a).toMidi() - Tone.Frequency(b).toMidi()
     );
@@ -84,13 +101,9 @@ export default function App() {
     if (opts.style === 'sustained') {
       synth.triggerAttackRelease(orderedNotes, '2n', now);
     } else if (opts.style === 'arpeggiated') {
-      orderedNotes.forEach((n, i) =>
-        synth.triggerAttackRelease(n, '8n', now + i * 0.3)
-      );
+      orderedNotes.forEach((n, i) => synth.triggerAttackRelease(n, '8n', now + i * 0.3));
     } else if (opts.style === 'strummed') {
-      orderedNotes.forEach((n, i) =>
-        synth.triggerAttackRelease(n, '4n', now + i * 0.07)
-      );
+      orderedNotes.forEach((n, i) => synth.triggerAttackRelease(n, '4n', now + i * 0.07));
     }
   }
 
@@ -102,21 +115,27 @@ export default function App() {
         <label>
           Root:
           <select value={root} onChange={e => setRoot(e.target.value)}>
-            {NOTES.map(n => <option key={n} value={n}>{n}</option>)}
+            {NOTES.map(n => (
+              <option key={n} value={n}>{n}</option>
+            ))}
           </select>
         </label>
 
         <label>
           Scale:
           <select value={scale} onChange={e => setScale(e.target.value)}>
-            {SCALE_TYPES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            {SCALE_TYPES.map(s => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
           </select>
         </label>
 
         <label>
           Instrument:
           <select value={instrument} onChange={e => setInstrument(e.target.value)}>
-            {INSTRUMENTS.map(i => <option key={i} value={i}>{i}</option>)}
+            {INSTRUMENTS.map(i => (
+              <option key={i} value={i}>{i}</option>
+            ))}
           </select>
         </label>
 
@@ -140,7 +159,7 @@ export default function App() {
       <div className="chords-grid">
         {chords.map((c, i) => (
           <div key={i} className="chord-card">
-            <div className="degree">{['I','II','III','IV','V','VI','VII'][i]}</div>
+            <div className="degree">{['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][i]}</div>
             <div className="chord-notes">{c.join(' - ')}</div>
             <button onClick={() => playChord(c, { style: playStyle, instrument })}>Play</button>
           </div>
@@ -148,7 +167,7 @@ export default function App() {
       </div>
 
       <footer>
-        <small>Tip: use headphones 🎧. This demo uses Tone.js for synthesis.</small>
+        <small>Tip: use headphones 🎧. Powered by Tone.js</small>
       </footer>
     </div>
   );
