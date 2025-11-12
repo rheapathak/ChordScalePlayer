@@ -1,8 +1,8 @@
 body {
-    font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     margin: 0;
-    background: #f7fafc;
-    color: #111;
+    background: linear-gradient(135deg, #1f2937, #111827);
+    color: #f3f4f6;
   }
   
   .container {
@@ -12,14 +12,16 @@ body {
     text-align: center;
   }
   
-  h1 {
-    font-size: 2rem;
-    margin-bottom: 1rem;
+  .title {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+    color: #38bdf8;
   }
   
   .controls {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 1rem;
     margin-bottom: 2rem;
   }
@@ -28,31 +30,41 @@ body {
     display: flex;
     flex-direction: column;
     font-weight: 600;
+    font-size: 0.95rem;
   }
   
   select {
     margin-top: 0.25rem;
     padding: 0.5rem;
     border-radius: 0.5rem;
-    border: 1px solid #ccc;
+    border: none;
+    background: #111827;
+    color: #f3f4f6;
   }
   
-  .scale-display {
-    margin-bottom: 2rem;
+  .scale-display h2 {
+    margin-bottom: 0.5rem;
+    color: #facc15;
   }
   
   .notes {
     display: flex;
     justify-content: center;
     gap: 0.75rem;
-    margin-top: 0.5rem;
+    flex-wrap: wrap;
   }
   
   .note {
-    background: #edf2f7;
+    background: #1f2937;
     padding: 0.5rem 1rem;
     border-radius: 0.75rem;
     font-weight: 600;
+    transition: transform 0.2s;
+  }
+  
+  .note:hover {
+    transform: scale(1.1);
+    background: #f87171;
   }
   
   .chords-grid {
@@ -62,16 +74,22 @@ body {
   }
   
   .chord-card {
-    background: white;
+    background: #111827;
     padding: 1rem;
     border-radius: 1rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  
+  .chord-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
   }
   
   .degree {
     font-weight: bold;
     font-size: 1.25rem;
-    color: #2b6cb0;
+    color: #38bdf8;
     margin-bottom: 0.25rem;
   }
   
@@ -81,22 +99,24 @@ body {
   }
   
   button {
-    background: #2b6cb0;
-    color: white;
+    background: #22c55e;
+    color: #111827;
     border: none;
     padding: 0.5rem 1rem;
     border-radius: 0.5rem;
     cursor: pointer;
-    transition: background 0.2s;
+    font-weight: 600;
+    transition: background 0.2s, transform 0.2s;
   }
   
   button:hover {
-    background: #2c5282;
+    background: #16a34a;
+    transform: scale(1.05);
   }
   
   footer {
     margin-top: 2rem;
     font-size: 0.8rem;
-    color: #555;
+    color: #9ca3af;
   }
   
