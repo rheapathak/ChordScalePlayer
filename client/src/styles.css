@@ -1,0 +1,102 @@
+body {
+    font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    background: #f7fafc;
+    color: #111;
+  }
+  
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem;
+    text-align: center;
+  }
+  
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+  
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  
+  label {
+    display: flex;
+    flex-direction: column;
+    font-weight: 600;
+  }
+  
+  select {
+    margin-top: 0.25rem;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid #ccc;
+  }
+  
+  .scale-display {
+    margin-bottom: 2rem;
+  }
+  
+  .notes {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+  }
+  
+  .note {
+    background: #edf2f7;
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+  }
+  
+  .chords-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+  
+  .chord-card {
+    background: white;
+    padding: 1rem;
+    border-radius: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .degree {
+    font-weight: bold;
+    font-size: 1.25rem;
+    color: #2b6cb0;
+    margin-bottom: 0.25rem;
+  }
+  
+  .chord-notes {
+    font-family: monospace;
+    margin-bottom: 0.5rem;
+  }
+  
+  button {
+    background: #2b6cb0;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  
+  button:hover {
+    background: #2c5282;
+  }
+  
+  footer {
+    margin-top: 2rem;
+    font-size: 0.8rem;
+    color: #555;
+  }
+  
