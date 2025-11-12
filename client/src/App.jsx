@@ -11,7 +11,7 @@ const SCALE_TYPES = [
   { value: 'melodicMinor', label: 'Melodic Minor', intervals: [2, 1, 2, 2, 2, 2, 1] },
 ];
 
-const INSTRUMENTS = ['Synth', 'AMSynth', 'DuoSynth', 'FMSynth', 'PluckSynth'];
+const INSTRUMENTS = ['Synth', 'AMSynth', 'FMSynth', 'DuoSynth', 'PluckSynth'];
 
 export default function App() {
   const [root, setRoot] = useState('C');
@@ -19,6 +19,7 @@ export default function App() {
   const [instrument, setInstrument] = useState('Synth');
   const [playStyle, setPlayStyle] = useState('sustained');
 
+  // --- Build scale notes ---
   function getScaleNotes(root, intervals) {
     const rootIndex = NOTES.indexOf(root);
     let notes = [root];
@@ -33,13 +34,14 @@ export default function App() {
   const scaleData = SCALE_TYPES.find(s => s.value === scale);
   const scaleNotes = getScaleNotes(root, scaleData.intervals);
 
+  // --- Build triad chords ---
   function buildChords(scaleNotes) {
     let chords = [];
     for (let i = 0; i < scaleNotes.length - 1; i++) {
       let triad = [
         scaleNotes[i],
         scaleNotes[(i + 2) % scaleNotes.length],
-        scaleNotes[(i + 4) % scaleNotes.length]
+        scaleNotes[(i + 4) % scaleNotes.length],
       ];
       chords.push(triad);
     }
@@ -48,25 +50,47 @@ export default function App() {
 
   const chords = buildChords(scaleNotes);
 
+  // --- Play chord with improved audio ---
   async function playChord(notes, opts = { style: 'sustained' }) {
     await Tone.start();
     const now = Tone.now();
-    const SynthType = Tone[instrument];
-    const synth = new SynthType().toDestination();
-    const pitchNotes = notes.map(n => `${n}4`);
 
+    // --- Effects ---
+    const reverb = new Tone.Reverb({ decay: 3, wet: 0.4 }).toDestination();
+    const chorus = new Tone.Chorus(4, 2.5, 0.3).start();
+    const delay = new Tone.FeedbackDelay('8n', 0.25);
+
+    // --- PolySynth for chords ---
+    const synth = new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: 'triangle' },
+      envelope: { attack: 0.05, decay: 0.2, sustain: 0.5, release: 1.2 },
+    }).chain(chorus, delay, reverb, Tone.Destination);
+
+    // --- Spread chord notes across octaves for richer sound ---
+    const pitchNotes = [`${notes[0]}3`, `${notes[1]}4`, `${notes[2]}5`];
+
+    // --- Sort for ascending arpeggio ---
+    const orderedNotes = [...pitchNotes].sort(
+      (a, b) => Tone.Frequency(a).toMidi() - Tone.Frequency(b).toMidi()
+    );
+
+    // --- Play styles ---
     if (opts.style === 'sustained') {
-      pitchNotes.forEach(p => synth.triggerAttackRelease(p, '2n', now));
+      synth.triggerAttackRelease(orderedNotes, '2n', now);
     } else if (opts.style === 'arpeggiated') {
-      pitchNotes.forEach((p, i) => synth.triggerAttackRelease(p, '8n', now + i * 0.25));
+      orderedNotes.forEach((n, i) =>
+        synth.triggerAttackRelease(n, '8n', now + i * 0.3)
+      );
     } else if (opts.style === 'strummed') {
-      pitchNotes.forEach((p, i) => synth.triggerAttackRelease(p, '8n', now + i * 0.06));
+      orderedNotes.forEach((n, i) =>
+        synth.triggerAttackRelease(n, '4n', now + i * 0.07)
+      );
     }
   }
 
   return (
     <div className="container">
-      <h1>🎵 Chord Scale Player</h1>
+      <h1>ChordScalePlayer</h1>
 
       <div className="controls">
         <label>
@@ -107,26 +131,22 @@ export default function App() {
       </div>
 
       <div className="scale-display">
-        <h2>{root} {scaleData.label}</h2>
-        <div className="notes">
-          {scaleNotes.map((n, i) => (
-            <span key={i} className="note">{n}</span>
-          ))}
-        </div>
+        <h2>{root} — {scaleData.label}</h2>
+        <div className="notes">{scaleNotes.map((n, i) => <span key={i} className="note">{n}</span>)}</div>
       </div>
 
       <div className="chords-grid">
-        {chords.map((ch, i) => (
+        {chords.map((c, i) => (
           <div key={i} className="chord-card">
-            <div className="degree">{['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][i]}</div>
-            <div className="chord-notes">{ch.join(' - ')}</div>
-            <button onClick={() => playChord(ch, { style: playStyle })}>Play</button>
+            <div className="degree">{['I','II','III','IV','V','VI','VII'][i]}</div>
+            <div className="chord-notes">{c.join(' - ')}</div>
+            <button onClick={() => playChord(c, { style: playStyle })}>Play</button>
           </div>
         ))}
       </div>
 
       <footer>
-        <small>Tip: use headphones 🎧 This demo uses Tone.js for synthesis.</small>
+        <small>Tip: use headphones. This demo uses Tone.js for synthesis.</small>
       </footer>
     </div>
   );
