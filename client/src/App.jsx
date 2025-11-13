@@ -114,6 +114,14 @@ export default function App() {
         synth.triggerAttackRelease(n, '4n', now + i * 0.07)
       );
     }
+
+    // Clean up audio nodes after sound finishes
+    setTimeout(() => {
+      synth.dispose();
+      reverb.dispose();
+      chorus.dispose();
+      delay.dispose();
+    }, 3000);
   }
 
   return (
