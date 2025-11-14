@@ -18,7 +18,16 @@ const SCALE_TYPES = [
   { value: 'melodicMinor', label: 'Melodic Minor', intervals: [2, 1, 2, 2, 2, 2, 1] },
 ];
 
-const INSTRUMENTS = ['Synth', 'AMSynth', 'FMSynth', 'DuoSynth', 'PluckSynth'];
+const INSTRUMENTS = ['Synth', 'AMSynth', 'FMSynth', 'Piano', 'Guitar'];
+
+const COMMON_PROGRESSIONS = [
+  { name: 'I-V-vi-IV', degrees: [0, 4, 5, 3], label: 'Pop Progression' },
+  { name: 'I-IV-V', degrees: [0, 3, 4], label: 'Classic Rock' },
+  { name: 'ii-V-I', degrees: [1, 4, 0], label: 'Jazz Turnaround' },
+  { name: 'I-vi-IV-V', degrees: [0, 5, 3, 4], label: '50s Progression' },
+  { name: 'vi-IV-I-V', degrees: [5, 3, 0, 4], label: 'Sensitive' },
+  { name: 'I-IV-vi-V', degrees: [0, 3, 5, 4], label: 'Melancholic' },
+];
 
 const SYNTH_TYPES = {
   Synth: Tone.Synth,
@@ -123,6 +132,8 @@ export default function App() {
   const [scale, setScale] = useState('major');
   const [instrument, setInstrument] = useState('Synth');
   const [playStyle, setPlayStyle] = useState('sustained');
+  const [chordType, setChordType] = useState('triad');
+  const [isPlayingAll, setIsPlayingAll] = useState(false);
 
   // --- Compute scale notes with correct enharmonics ---
   function getScaleNotes(root, intervals, scaleType) {
@@ -142,7 +153,7 @@ export default function App() {
   const scaleData = SCALE_TYPES.find(s => s.value === scale);
   const scaleNotes = getScaleNotes(root, scaleData.intervals, scale);
 
-  // --- Build correct diatonic triads ---
+  // --- Build correct diatonic chords ---
   function buildChords(scaleNotes) {
     const chords = [];
     const n = scaleNotes.length; // 7 notes
@@ -150,7 +161,18 @@ export default function App() {
       const rootNote = scaleNotes[i];
       const thirdNote = scaleNotes[(i + 2) % n];
       const fifthNote = scaleNotes[(i + 4) % n];
-      chords.push([rootNote, thirdNote, fifthNote]);
+      const seventhNote = scaleNotes[(i + 6) % n];
+      const ninthNote = scaleNotes[(i + 1) % n]; // 9th is same as 2nd
+      
+      let chord = [rootNote, thirdNote, fifthNote];
+      
+      if (chordType === 'seventh') {
+        chord.push(seventhNote);
+      } else if (chordType === 'ninth') {
+        chord.push(seventhNote, ninthNote);
+      }
+      
+      chords.push(chord);
     }
     return chords;
   }
@@ -158,16 +180,21 @@ export default function App() {
   const chords = buildChords(scaleNotes);
 
   // --- Map chord to playable pitches across octaves ---
-  function getPitchNotes(triad) {
-    return [
-      `${triad[0]}3`,
-      `${triad[1]}4`,
-      `${triad[2]}4`,
-    ];
+  function getPitchNotes(chord) {
+    const pitches = [`${chord[0]}3`, `${chord[1]}4`, `${chord[2]}4`];
+    
+    if (chord.length >= 4) {
+      pitches.push(`${chord[3]}4`);
+    }
+    if (chord.length >= 5) {
+      pitches.push(`${chord[4]}5`);
+    }
+    
+    return pitches;
   }
 
   // --- Play chord ---
-  async function playChord(triad, opts = { style: 'sustained', instrument: 'Synth' }) {
+  async function playChord(chord, opts = { style: 'sustained', instrument: 'Synth' }) {
     await Tone.start();
     const now = Tone.now();
 
@@ -175,18 +202,48 @@ export default function App() {
     const chorus = new Tone.Chorus(4, 2.5, 0.3).start();
     const delay = new Tone.FeedbackDelay('8n', 0.25);
 
-    const ChosenSynth = SYNTH_TYPES[opts.instrument];
     let synth;
-    if (opts.instrument === 'DuoSynth') {
-      synth = new Tone.DuoSynth().chain(chorus, delay, reverb, Tone.Destination);
+    
+    if (opts.instrument === 'Piano') {
+      // Piano using Synth with piano-like settings
+      synth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: 'triangle' },
+        envelope: { 
+          attack: 0.005, 
+          decay: 0.3, 
+          sustain: 0.1, 
+          release: 1 
+        },
+      }).chain(reverb, Tone.Destination);
+    } else if (opts.instrument === 'Guitar') {
+      // Guitar using FMSynth for more realistic plucked sound
+      synth = new Tone.PolySynth(Tone.FMSynth, {
+        harmonicity: 2,
+        modulationIndex: 2,
+        oscillator: { type: 'triangle' },
+        envelope: { 
+          attack: 0.01, 
+          decay: 0.5, 
+          sustain: 0.2, 
+          release: 0.5 
+        },
+        modulation: { type: 'square' },
+        modulationEnvelope: { 
+          attack: 0.01, 
+          decay: 0.3, 
+          sustain: 0, 
+          release: 0.1 
+        }
+      }).chain(chorus, delay, reverb, Tone.Destination);
     } else {
+      const ChosenSynth = SYNTH_TYPES[opts.instrument];
       synth = new Tone.PolySynth(ChosenSynth, {
         oscillator: { type: 'triangle' },
         envelope: { attack: 0.05, decay: 0.2, sustain: 0.5, release: 1.2 },
       }).chain(chorus, delay, reverb, Tone.Destination);
     }
 
-    const pitchNotes = getPitchNotes(triad);
+    const pitchNotes = getPitchNotes(chord);
     const orderedNotes = [...pitchNotes].sort(
       (a, b) => Tone.Frequency(a).toMidi() - Tone.Frequency(b).toMidi()
     );
@@ -210,6 +267,59 @@ export default function App() {
       chorus.dispose();
       delay.dispose();
     }, 3000);
+  }
+
+  // --- Play all chords in sequence ---
+  async function playAllChords() {
+    if (isPlayingAll) return;
+    setIsPlayingAll(true);
+    
+    for (let i = 0; i < chords.length; i++) {
+      await playChord(chords[i], { style: playStyle, instrument });
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    
+    setIsPlayingAll(false);
+  }
+
+  // --- Play progression ---
+  async function playProgression(degrees) {
+    if (isPlayingAll) return;
+    setIsPlayingAll(true);
+    
+    for (let degreeIndex of degrees) {
+      await playChord(chords[degreeIndex], { style: playStyle, instrument });
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    
+    setIsPlayingAll(false);
+  }
+
+  // --- Get chord quality label ---
+  function getChordQuality(chord, degreeIndex, scaleType) {
+    // Simplified chord quality detection
+    const qualities = {
+      major: ['', 'm', 'm', '', '', 'm', 'dim'],
+      minor: ['m', 'dim', '', 'm', 'm', '', ''],
+      harmonicMinor: ['m', 'dim', 'aug', 'm', '', '', 'dim'],
+      melodicMinor: ['m', 'm', 'aug', '', '', 'dim', 'dim']
+    };
+    
+    let quality = qualities[scaleType]?.[degreeIndex] || '';
+    
+    if (chordType === 'seventh') {
+      const seventhQualities = {
+        major: ['maj7', 'm7', 'm7', 'maj7', '7', 'm7', 'm7b5'],
+        minor: ['m7', 'm7b5', 'maj7', 'm7', 'm7', 'maj7', '7'],
+        harmonicMinor: ['m(maj7)', 'm7b5', 'maj7#5', 'm7', '7', 'maj7', 'dim7'],
+        melodicMinor: ['m(maj7)', 'm7', 'maj7#5', '7', '7', 'm7b5', 'm7b5']
+      };
+      quality = seventhQualities[scaleType]?.[degreeIndex] || quality + '7';
+    } else if (chordType === 'ninth') {
+      quality = quality + '9';
+    }
+    
+    return quality;
   }
 
   if (showIntro) {
@@ -315,6 +425,24 @@ export default function App() {
             <option value="strummed" style={{ background: '#5a67d8' }}>Strummed</option>
           </select>
         </label>
+
+        <label style={{ display: 'flex', flexDirection: 'column', color: 'white', fontWeight: 600 }}>
+          Chord Type:
+          <select value={chordType} onChange={e => setChordType(e.target.value)} style={{
+            marginTop: '0.5rem',
+            padding: '0.5rem',
+            borderRadius: '0.5rem',
+            border: '2px solid rgba(255,255,255,0.3)',
+            background: 'rgba(255,255,255,0.2)',
+            color: 'white',
+            fontSize: '1rem',
+            cursor: 'pointer'
+          }}>
+            <option value="triad" style={{ background: '#5a67d8' }}>Triad</option>
+            <option value="seventh" style={{ background: '#5a67d8' }}>7th Chords</option>
+            <option value="ninth" style={{ background: '#5a67d8' }}>9th Chords</option>
+          </select>
+        </label>
       </div>
 
       <div style={{
@@ -342,6 +470,102 @@ export default function App() {
             }}>
               {n}
             </span>
+          ))}
+        </div>
+      </div>
+
+      <div style={{
+        background: 'rgba(255,255,255,0.1)',
+        backdropFilter: 'blur(10px)',
+        padding: '1.5rem',
+        borderRadius: '1rem',
+        marginBottom: '2rem',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+      }}>
+        <h3 style={{ color: 'white', marginBottom: '1rem', fontSize: '1.5rem', textAlign: 'center' }}>
+          Quick Actions
+        </h3>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button 
+            onClick={playAllChords}
+            disabled={isPlayingAll}
+            style={{
+              padding: '0.75rem 1.5rem',
+              border: 'none',
+              borderRadius: '0.75rem',
+              background: isPlayingAll ? 'rgba(255,255,255,0.3)' : 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              color: 'white',
+              fontWeight: 'bold',
+              fontSize: '1rem',
+              cursor: isPlayingAll ? 'not-allowed' : 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              opacity: isPlayingAll ? 0.6 : 1
+            }}
+            onMouseEnter={(e) => {
+              if (!isPlayingAll) {
+                e.target.style.transform = 'scale(1.05)';
+                e.target.style.boxShadow = '0 6px 16px rgba(0,0,0,0.4)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'scale(1)';
+              e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+            }}
+          >
+            {isPlayingAll ? '⏸ Playing...' : '▶ Play All Chords'}
+          </button>
+        </div>
+      </div>
+
+      <div style={{
+        background: 'rgba(255,255,255,0.1)',
+        backdropFilter: 'blur(10px)',
+        padding: '1.5rem',
+        borderRadius: '1rem',
+        marginBottom: '2rem',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+      }}>
+        <h3 style={{ color: 'white', marginBottom: '1rem', fontSize: '1.5rem', textAlign: 'center' }}>
+          Common Progressions
+        </h3>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {COMMON_PROGRESSIONS.map((prog, idx) => (
+            <button
+              key={idx}
+              onClick={() => playProgression(prog.degrees)}
+              disabled={isPlayingAll}
+              style={{
+                padding: '0.75rem 1.25rem',
+                border: 'none',
+                borderRadius: '0.75rem',
+                background: isPlayingAll ? 'rgba(255,255,255,0.3)' : 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+                color: isPlayingAll ? 'white' : '#5a67d8',
+                fontWeight: 'bold',
+                fontSize: '0.9rem',
+                cursor: isPlayingAll ? 'not-allowed' : 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                opacity: isPlayingAll ? 0.6 : 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '0.25rem'
+              }}
+              onMouseEnter={(e) => {
+                if (!isPlayingAll) {
+                  e.target.style.transform = 'scale(1.05)';
+                  e.target.style.boxShadow = '0 6px 16px rgba(0,0,0,0.4)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+              }}
+            >
+              <span style={{ fontSize: '1rem' }}>{prog.name}</span>
+              <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{prog.label}</span>
+            </button>
           ))}
         </div>
       </div>
@@ -377,7 +601,11 @@ export default function App() {
               marginBottom: '1rem',
               fontWeight: 500
             }}>
-              {c.join(' - ')}
+              {c[0]}{getChordQuality(c, i, scale)}
+              <br />
+              <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>
+                ({c.join(' - ')})
+              </span>
             </div>
             <button 
               onClick={() => playChord(c, { style: playStyle, instrument })}
@@ -410,7 +638,8 @@ export default function App() {
       </div>
 
       <footer style={{ textAlign: 'center', color: 'rgba(255,255,255,0.8)', marginTop: '2rem', padding: '1rem' }}>
-        <small style={{ fontSize: '0.9rem' }}>Tip: use headphones 🎧. Powered by Tone.js</small>
+        <small style={{ fontSize: '0.9rem', display: 'block', marginBottom: '0.5rem' }}>Tip: use headphones 🎧. Powered by Tone.js</small>
+        <small style={{ fontSize: '0.85rem', display: 'block', fontStyle: 'italic' }}>Website Developed by Rhea Pathak</small>
       </footer>
       </div>
     </div>
