@@ -140,6 +140,7 @@ export default function App() {
   const [playStyle, setPlayStyle] = useState('sustained');
   const [chordType, setChordType] = useState('triad');
   const [isPlayingAll, setIsPlayingAll] = useState(false);
+  const [audioReady, setAudioReady] = useState(false);
 
   // --- Compute scale notes with correct enharmonics ---
   function getScaleNotes(root, intervals, scaleType) {
