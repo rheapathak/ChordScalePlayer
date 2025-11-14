@@ -80,7 +80,11 @@ function IntroScreen({ onStart }) {
           A Webpage by Rhea Pathak
         </p>
         <button 
-          onClick={onStart}
+          onClick={async () => {
+            // Initialize audio context on user interaction (required for mobile)
+            await Tone.start();
+            setShowIntro(false);
+          }}
           style={{
             padding: '1.2rem 3rem',
             fontSize: '1.3rem',
@@ -195,7 +199,10 @@ export default function App() {
 
   // --- Play chord ---
   async function playChord(chord, opts = { style: 'sustained', instrument: 'Synth' }) {
-    await Tone.start();
+    // Ensure Tone.js is started (required for mobile)
+    if (Tone.context.state !== 'running') {
+      await Tone.start();
+    }
     const now = Tone.now();
 
     const reverb = new Tone.Reverb({ decay: 3, wet: 0.4 }).toDestination();
