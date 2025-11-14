@@ -39,6 +39,12 @@ const SYNTH_TYPES = {
 
 // --- Intro Screen Component ---
 function IntroScreen({ onStart }) {
+  const handleStart = async () => {
+    // Initialize audio context on user interaction (required for mobile)
+    await Tone.start();
+    onStart();
+  };
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -80,11 +86,7 @@ function IntroScreen({ onStart }) {
           A Webpage by Rhea Pathak
         </p>
         <button 
-          onClick={async () => {
-            // Initialize audio context on user interaction (required for mobile)
-            await Tone.start();
-            setShowIntro(false);
-          }}
+          onClick={handleStart}
           style={{
             padding: '1.2rem 3rem',
             fontSize: '1.3rem',
