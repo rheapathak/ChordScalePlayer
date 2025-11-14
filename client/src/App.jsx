@@ -217,6 +217,56 @@ export default function App() {
     return pitches;
   }
 
+  // --- Play single note ---
+  async function playNote(noteName) {
+    try {
+      // Ensure audio context is started
+      if (Tone.context.state !== 'running') {
+        await Tone.start();
+      }
+      
+      if (Tone.context.state !== 'running') {
+        alert('Audio not enabled. Please tap the screen to enable sound.');
+        return;
+      }
+
+      const now = Tone.now();
+      const reverb = new Tone.Reverb({ decay: 2, wet: 0.3 }).toDestination();
+
+      let synth;
+      if (instrument === 'Piano') {
+        synth = new Tone.Synth({
+          oscillator: { type: 'triangle' },
+          envelope: { attack: 0.005, decay: 0.3, sustain: 0.1, release: 1 },
+        }).chain(reverb, Tone.Destination);
+      } else if (instrument === 'Guitar') {
+        synth = new Tone.FMSynth({
+          harmonicity: 2,
+          modulationIndex: 2,
+          oscillator: { type: 'triangle' },
+          envelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 0.5 },
+          modulation: { type: 'square' },
+          modulationEnvelope: { attack: 0.01, decay: 0.3, sustain: 0, release: 0.1 }
+        }).chain(reverb, Tone.Destination);
+      } else {
+        const ChosenSynth = SYNTH_TYPES[instrument];
+        synth = new ChosenSynth({
+          oscillator: { type: 'triangle' },
+          envelope: { attack: 0.05, decay: 0.2, sustain: 0.5, release: 1.2 },
+        }).chain(reverb, Tone.Destination);
+      }
+
+      synth.triggerAttackRelease(`${noteName}4`, '4n', now);
+
+      setTimeout(() => {
+        synth.dispose();
+        reverb.dispose();
+      }, 2000);
+    } catch (error) {
+      console.error('Error playing note:', error);
+    }
+  }
+
   // --- Play chord ---
   async function playChord(chord, opts = { style: 'sustained', instrument: 'Synth' }) {
     try {
@@ -500,17 +550,32 @@ export default function App() {
         </h2>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           {scaleNotes.map((n, i) => (
-            <span key={i} style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              padding: '0.75rem 1.5rem',
-              borderRadius: '0.75rem',
-              fontWeight: 'bold',
-              fontSize: '1.25rem',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-            }}>
+            <button
+              key={i}
+              onClick={() => playNote(n)}
+              style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '0.75rem',
+                fontWeight: 'bold',
+                fontSize: '1.25rem',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-3px)';
+                e.target.style.boxShadow = '0 6px 16px rgba(0,0,0,0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+              }}
+            >
               {n}
-            </span>
+            </button>
           ))}
         </div>
       </div>
