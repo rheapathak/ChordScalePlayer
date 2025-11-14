@@ -40,9 +40,16 @@ const SYNTH_TYPES = {
 // --- Intro Screen Component ---
 function IntroScreen({ onStart }) {
   const handleStart = async () => {
-    // Initialize audio context on user interaction (required for mobile)
-    await Tone.start();
-    onStart();
+    try {
+      // Initialize audio context on user interaction (required for mobile)
+      await Tone.start();
+      console.log('Audio context started successfully');
+      onStart();
+    } catch (error) {
+      console.error('Failed to start audio:', error);
+      // Still let them through even if audio fails
+      onStart();
+    }
   };
 
   return (
@@ -188,13 +195,23 @@ export default function App() {
 
   // --- Map chord to playable pitches across octaves ---
   function getPitchNotes(chord) {
-    const pitches = [`${chord[0]}3`, `${chord[1]}4`, `${chord[2]}4`];
+    // Start with root in octave 3
+    const pitches = [`${chord[0]}3`];
     
-    if (chord.length >= 4) {
-      pitches.push(`${chord[3]}4`);
-    }
-    if (chord.length >= 5) {
-      pitches.push(`${chord[4]}5`);
+    // Add remaining notes, ensuring they're above the root
+    for (let i = 1; i < chord.length; i++) {
+      const note = chord[i];
+      const rootMidi = Tone.Frequency(`${chord[0]}3`).toMidi();
+      
+      // Try octave 3 first
+      let noteMidi = Tone.Frequency(`${note}3`).toMidi();
+      
+      // If this note is below the root, move it up an octave
+      if (noteMidi < rootMidi) {
+        pitches.push(`${note}4`);
+      } else {
+        pitches.push(`${note}3`);
+      }
     }
     
     return pitches;
@@ -202,11 +219,21 @@ export default function App() {
 
   // --- Play chord ---
   async function playChord(chord, opts = { style: 'sustained', instrument: 'Synth' }) {
-    // Ensure Tone.js is started (required for mobile)
-    if (Tone.context.state !== 'running') {
-      await Tone.start();
-    }
-    const now = Tone.now();
+    try {
+      // Ensure audio context is started (critical for mobile)
+      if (Tone.context.state !== 'running') {
+        console.log('Attempting to resume audio context...');
+        await Tone.start();
+      }
+      
+      // Double-check it's actually running
+      if (Tone.context.state !== 'running') {
+        console.error('Audio context failed to start');
+        alert('Audio not enabled. Please tap the screen to enable sound.');
+        return;
+      }
+
+      const now = Tone.now();
 
     const reverb = new Tone.Reverb({ decay: 3, wet: 0.4 }).toDestination();
     const chorus = new Tone.Chorus(4, 2.5, 0.3).start();
@@ -277,6 +304,10 @@ export default function App() {
       chorus.dispose();
       delay.dispose();
     }, 3000);
+    } catch (error) {
+      console.error('Error playing chord:', error);
+      alert('Audio error: ' + error.message);
+    }
   }
 
   // --- Play all chords in sequence ---
